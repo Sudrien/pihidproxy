@@ -29,6 +29,10 @@ To pull this off, a few changes have to be made:
 Ensure the files from this repository are stored under `/home/pi/pihidproxy` and run the following:
 
     chmod +x /home/pi/pihidproxy/*.sh
+	
+Copy the sample config file
+	
+	cp /home/pi/pihidproxy/config.conf.sample /home/pi/pihidproxy/config.conf
 
 ## Setting up service
 
@@ -52,8 +56,9 @@ Enable the systemd service:
 
 ## Device identity
 
-The name or the MAC address of the Bluetooth keyboard will need to go into the value of `devicename` found in `pair.sh`.
+The name or the MAC address of the Bluetooth keyboard will need to go into the value of `devicename` found in `config.conf` -  .
 
+    sudo chmod -R a+rwx /var/lib/bluetooth
 ## Connecting
 
 If not done so already, the RPi will need to be rebooted.
@@ -70,6 +75,7 @@ When rebooting or powering on the RPi, put the Bluetooth keyboard into discovera
 
 ## Troubleshooting
 
+
 From testing, keyboards that go into a sleep state may have a hard time recovering their connection, meaning having to reboot the RPi.
 To help avoid this issue, initially pair the Bluetooth keyboard via the Bluetooth menu on the desktop UI. If not done in the first place, connect a mouse (via USB [receiver]) to the RPi and redo the pairing.
 
@@ -77,3 +83,4 @@ If after installation there is no keyboard input going through to the device tha
 -  Put the keyboard into discoverable mode for around 10 seconds
 -  Turn the keyboard off and on
 -  Increase or decrease the sleep time in `start.sh` (what is required may need more or less time before `hcitool` is able to properly collect results)
+-  `chmod -R a+rwx /var/lib/bluetooth`, if keyboard pairs but is not remembered on subsequent boots

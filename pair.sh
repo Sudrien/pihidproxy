@@ -1,5 +1,7 @@
 #!/bin/bash
-devicename="Bluetooth Keyboard"
+
+source config.shlib;
+devicename="$(config_get devicename)"
 
 echo "Finding BT device *$devicename* ..."
 scan=$(sudo hcitool scan)
