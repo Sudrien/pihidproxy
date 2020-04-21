@@ -1,16 +1,20 @@
 
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 import evdev, time
 from evdev import InputDevice, categorize, ecodes
 
-import ConfigParser
 import io
 from select import select
+import os
+import sys
+
+if not os.geteuid() == 0:
+    sys.exit("\nOnly root can run this script\n")
 
 # Load the configuration file, which is NOT an INI
 config = {}
-with open("config.conf") as f:
+with open(os.path.dirname(os.path.abspath(__file__)) + "/config.conf") as f:
     for line in f:
         name, var = line.partition("=")[::2]
         config[name.strip()] = var.lower().strip().strip('\"')
@@ -37,28 +41,41 @@ while not dev:
 
 def write_report(report):
     with open('/dev/hidg0', 'rb+') as fd:
-        fd.write(report.encode())
+        fd.write(bytes(report))
 
-scancodes = {
-    # Scancode: ASCIICode
-    0: None,   1: u'ESC', 2: u'1',      3: u'2',   4: u'3',      5: u'4',    6: u'5',     7: u'6', 8: u'7',      9: u'8',
-    10: u'9', 11: u'0',  12: u'-',     13: u'=',  14: u'BKSP',  15: u'TAB', 16: u'q',    17: u'w', 18: u'e',    19: u'r',
-    20: u't', 21: u'y',  22: u'u',     23: u'i',  24: u'o',     25: u'p',   26: u'[',    27: u']', 28: u'CRLF', 29: u'LCTRL',
-    30: u'a', 31: u's',  32: u'd',     33: u'f',  34: u'g',     35: u'h',   36: u'j',    37: u'k', 38: u'l',    39: u';',
-    40: u'"', 41: u'`',  42: u'LSHFT', 43: u'\\', 44: u'z',     45: u'x',   46: u'c',    47: u'v', 48: u'b',    49: u'n',
-    50: u'm', 51: u',',  52: u'.',     53: u'/',  54: u'RSHFT',             56: u'LALT', 57: u' ', 
-   100: u'RALT'
-}
-# hidcodes from http://www.usb.org/developers/hidpage/Hut1_12v2.pdf p53
+unk = -1 #None
 
-#grab provides exclusive access to the device
-#dev.grab()
+hid_keyboard = [
+    0,  0,  0,  0, 30, 48, 46, 32, 18, 33, 34, 35, 23, 36, 37, 38,
+    50, 49, 24, 25, 16, 19, 31, 20, 22, 47, 17, 45, 21, 44,  2,  3,
+    4,  5,  6,  7,  8,  9, 10, 11, 28,  1, 14, 15, 57, 12, 13, 26,
+    27, 43, 43, 39, 40, 41, 51, 52, 53, 58, 59, 60, 61, 62, 63, 64,
+    65, 66, 67, 68, 87, 88, 99, 70,119,110,102,104,111,107,109,106,
+    105,108,103, 69, 98, 55, 74, 78, 96, 79, 80, 81, 75, 76, 77, 71,
+    72, 73, 82, 83, 86,127,116,117,183,184,185,186,187,188,189,190,
+    191,192,193,194,134,138,130,132,128,129,131,137,133,135,136,113,
+    115,114,unk,unk,unk,121,unk, 89, 93,124, 92, 94, 95,unk,unk,unk,
+    122,123, 90, 91, 85,unk,unk,unk,unk,unk,unk,unk,111,unk,unk,unk,
+    unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+    unk,unk,unk,unk,unk,unk,179,180,unk,unk,unk,unk,unk,unk,unk,unk,
+    unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,unk,
+    unk,unk,unk,unk,unk,unk,unk,unk,111,unk,unk,unk,unk,unk,unk,unk,
+    29, 42, 56,125, 97, 54,100,126,164,166,165,163,161,115,114,113,
+    150,158,159,128,136,177,178,176,142,152,173,140,unk,unk,unk,unk
+    ]
 
-deadkey = False
+# https://github.com/torvalds/linux/blob/master/drivers/hid/hid-input.c
+# https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h later?
+
+
+
+#for i in range(len(hid_keyboard)):
+#    if hid_keyboard[i] > -1:
+#        print("hid %d: %d %s" % (i, hid_keyboard[i], ecodes.KEY[ hid_keyboard[i] ] ))
+#    else:
+#        print("hid %d: %d %s" % (i, hid_keyboard[i], ""))
+
 caps = False
-hidkey = 0
-
-
 
 #loop
 while True:
@@ -74,70 +91,14 @@ while True:
                         caps = False
                     continue # don't send
                 if data.keystate == 1:  # Down events only
-                    key_lookup = u'{}'.format(scancodes.get(data.scancode))
-
-                    # print key_lookup, data.scancode
-                    if len(key_lookup) == 1:
-                        hidkey = ord(key_lookup) - 93 # a-z
-                    if hidkey < 0: # 1-9
-                        hidkey = 0
-
-                    if data.scancode == 2: hidkey = 30 # 1
-                    if data.scancode == 3: hidkey = 31 # 2
-                    if data.scancode == 4: hidkey = 32 # 3
-                    if data.scancode == 5: hidkey = 33 # 4
-                    if data.scancode == 6: hidkey = 34 # 5
-                    if data.scancode == 7: hidkey = 35 # 6
-                    if data.scancode == 8: hidkey = 36 # 7
-                    if data.scancode == 9: hidkey = 37 # 8
-                    if data.scancode == 10: hidkey = 38 # 9
-                    if data.scancode == 11: hidkey = 39 # 0
-
-                    if data.scancode == 57: hidkey = 44 # space
-                    if data.scancode == 14: hidkey = 42 # bkspc
-                    if data.scancode == 28: hidkey = 40 # enter
-                    if data.scancode == 1: hidkey = 41 # ESC
-
-                    if data.scancode == 106: hidkey = 79 # RIGHT
-                    if data.scancode == 105: hidkey = 80 # LEFT
-                    if data.scancode == 108: hidkey = 81 # DOWN
-                    if data.scancode == 103: hidkey = 82 # UP
-
-                    if data.scancode == 59: hidkey = 58 # F1
-                    if data.scancode == 60: hidkey = 59 # F2
-                    if data.scancode == 61: hidkey = 60 # F3
-                    if data.scancode == 62: hidkey = 61 # F4
-                    if data.scancode == 63: hidkey = 62 # F5
-                    if data.scancode == 64: hidkey = 63 # F6
-                    if data.scancode == 65: hidkey = 64 # F7
-                    if data.scancode == 66: hidkey = 65 # F8
-                    if data.scancode == 67: hidkey = 66 # F9
-                    if data.scancode == 68: hidkey = 67 # F10
-                    if data.scancode == 69: hidkey = 68 # F11
-                    if data.scancode == 70: hidkey = 69 # F12
-
-                    if data.scancode == 12: hidkey = 45 # -
-                    if data.scancode == 13: hidkey = 46 # =
-                    if data.scancode == 15: hidkey = 43 # TAB
-
-                    if data.scancode == 26: hidkey = 47 # {
-                    if data.scancode == 27: hidkey = 48 # ]
-
-                    if data.scancode == 39: hidkey = 51 # :
-                    if data.scancode == 40: hidkey = 52 # "
-
-                    if data.scancode == 51: hidkey = 54 # <
-                    if data.scancode == 52: hidkey = 55 # >
-                    if data.scancode == 53: hidkey = 56 # ?
-
-                    if data.scancode == 41: hidkey = 50 # #
-                    if data.scancode == 43: hidkey = 49 # \
-
-                    # print key_lookup, data.scancode, hidkey
-
-                    if caps:
-                        write_report(chr(32)+NULL_CHAR + chr (hidkey) + NULL_CHAR*5)
+                    if data.scancode in hid_keyboard:
+                        print data
+                        if caps:
+                            write_report(chr(32)+NULL_CHAR + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
+                        else:
+                            write_report(NULL_CHAR*2 + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
                     else:
-                        write_report(NULL_CHAR*2 + chr (hidkey) + NULL_CHAR*5)
-
+                        # media key handler, supposedly. Not working for stuff like mute key.
+                        print data
+                        write_report(NULL_CHAR*2 + chr ( data.scancode ) + NULL_CHAR*5)
                     write_report(NULL_CHAR*8)
