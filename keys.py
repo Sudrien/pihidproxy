@@ -75,7 +75,7 @@ hid_keyboard = [
 #    else:
 #        print("hid %d: %d %s" % (i, hid_keyboard[i], ""))
 
-caps = False
+shift_held = False
 
 #loop
 while True:
@@ -84,16 +84,13 @@ while True:
         for event in dev[fd].read():
             if event.type == ecodes.EV_KEY:
                 data = categorize(event)
-                if data.scancode == 42:
-                    if data.keystate == 1:
-                        caps = True
-                    if data.keystate == 0:
-                        caps = False
+                if event.code == evdev.ecodes.KEY_LEFTSHIFT or event.code == evdev.ecodes.KEY_RIGHTSHIFT:
+                    shift_held = data.keystate != 0
                     continue # don't send
-                if data.keystate == 1:  # Down events only
+                if data.keystate == 1 or data.keystate == 2:  # Down & hold events
                     if data.scancode in hid_keyboard:
-                        print data
-                        if caps:
+#                        print data
+                        if shift_held:
                             write_report(chr(32)+NULL_CHAR + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
                         else:
                             write_report(NULL_CHAR*2 + chr ( hid_keyboard.index(data.scancode) ) + NULL_CHAR*5)
@@ -101,4 +98,5 @@ while True:
                         # media key handler, supposedly. Not working for stuff like mute key.
                         print data
                         write_report(NULL_CHAR*2 + chr ( data.scancode ) + NULL_CHAR*5)
+                if data.keystate == 0: # Up events
                     write_report(NULL_CHAR*8)
